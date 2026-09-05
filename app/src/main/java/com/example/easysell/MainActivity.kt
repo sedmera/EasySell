@@ -71,7 +71,7 @@ enum class AppDestinations(
     val label: String,
     val icon: Int,
 ) {
-    HOME("Home", R.drawable.ic_home),
-    HISTORY("History", R.drawable.ic_favorite),
-    GOODS("Goods", R.drawable.ic_account_box),
+    HOME("Home", R.drawable.home_icon),
+    HISTORY("History", R.drawable.history_icon),
+    GOODS("Goods", R.drawable.dataset_icon),
 }
