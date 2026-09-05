@@ -12,7 +12,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -20,6 +22,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
+import com.example.easysell.data.Product
 import com.example.easysell.ui.screens.GoodsScreen
 import com.example.easysell.ui.screens.HistoryScreen
 import com.example.easysell.ui.screens.HomeScreen
@@ -42,6 +45,8 @@ class MainActivity : ComponentActivity() {
 fun EasySellApp() {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
 
+    val productList = remember { mutableStateListOf<Product>() }
+
     NavigationSuiteScaffold(
         navigationSuiteItems = {
             AppDestinations.entries.forEach { destination ->
@@ -60,9 +65,18 @@ fun EasySellApp() {
         }
     ) {
         when (currentDestination) {
-            AppDestinations.HOME -> HomeScreen()
+            AppDestinations.HOME -> HomeScreen(
+               // onNewOrderClick = { currentDestination = AppDestinations.NEW_ORDER }
+            )
             AppDestinations.HISTORY -> HistoryScreen()
-            AppDestinations.GOODS -> GoodsScreen()
+            AppDestinations.GOODS -> GoodsScreen(
+                products = productList,
+                onAddProduct = { newProduct -> productList.add(newProduct) }
+            )
+    //        AppDestinations.NEW_ORDER -> NewOrderScreen(
+    //            availableProducts = productList, // Zde předáme sortiment do objednávky
+    //            onOrderFinished = { currentDestination = AppDestinations.HOME }
+    //        )
         }
     }
 }

@@ -1,6 +1,6 @@
 package com.example.easysell.data
 
-enum class GoodsCategory(val displayName: String) {
+enum class ProductCategory(val displayName: String) {
     FOOD("Jídlo"),
     DRINK("Nápoj"),
     COFFEE("Káva"),
@@ -10,9 +10,9 @@ enum class GoodsCategory(val displayName: String) {
     MISC("Ostatní")
 }
 
-data class Goods(
+data class Product(
     val id: String = java.util.UUID.randomUUID().toString(),
     val name: String,
     val price: Double,
-    val category: GoodsCategory
+    val category: ProductCategory
 )
