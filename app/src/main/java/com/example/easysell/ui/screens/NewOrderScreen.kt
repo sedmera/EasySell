@@ -13,27 +13,27 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.easysell.data.local.Product
+import java.util.Locale
 
 @Composable
 fun NewOrderScreen(
     orderName: String,
     products: List<Product>,
     onSave: (
-        orderName: String,
+        name: String,
         quantities: Map<Int, Int>
     ) -> Unit,
     onCancel: () -> Unit
@@ -42,104 +42,168 @@ fun NewOrderScreen(
         mutableStateOf<Map<Int, Int>>(emptyMap())
     }
 
-    val selectedItems = products.filter {
-        (quantities[it.id] ?: 0) > 0
+    val selectedProducts = products.filter { product ->
+        (quantities[product.id] ?: 0) > 0
     }
 
-    val total = selectedItems.sumOf { product ->
+    val total = selectedProducts.sumOf { product ->
         product.price * (quantities[product.id] ?: 0)
+    }
+
+    fun increase(product: Product) {
+        val current = quantities[product.id] ?: 0
+
+        quantities = quantities.toMutableMap().apply {
+            this[product.id] = current + 1
+        }
+    }
+
+    fun decrease(product: Product) {
+        val current = quantities[product.id] ?: 0
+
+        quantities = quantities.toMutableMap().apply {
+            if (current <= 1) {
+                remove(product.id)
+            } else {
+                this[product.id] = current - 1
+            }
+        }
     }
 
     Row(
         modifier = Modifier.fillMaxSize()
     ) {
 
-        // LEVÁ POLOVINA — SOUHRN
         Column(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
                 .padding(16.dp)
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = orderName,
+                        style = MaterialTheme.typography.headlineSmall
+                    )
 
-            Text(
-                text = orderName,
-                style = MaterialTheme.typography.headlineSmall
+                    Text(
+                        text = "Souhrn objednávky",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                TextButton(
+                    onClick = onCancel
+                ) {
+                    Text("Zrušit")
+                }
+            }
+
+            Spacer(
+                modifier = Modifier.height(12.dp)
             )
-
-            Spacer(Modifier.height(12.dp))
 
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(selectedItems) { product ->
+                items(
+                    items = selectedProducts,
+                    key = { it.id }
+                ) { product ->
 
-                    val quantity = quantities[product.id] ?: 0
+                    val quantity =
+                        quantities[product.id] ?: 0
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column {
-                            Text(product.name)
-                            Text(
-                                "$quantity × ${product.price} Kč"
-                            )
-                        }
-
-                        Row {
-                            IconButton(
-                                onClick = {
-                                    val newQuantity = quantity - 1
-
-                                    quantities =
-                                        quantities.toMutableMap().apply {
-                                            if (newQuantity <= 0) {
-                                                remove(product.id)
-                                            } else {
-                                                put(product.id, newQuantity)
-                                            }
-                                        }
-                                }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement =
+                                Arrangement.SpaceBetween
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Text("−")
+                                Text(
+                                    product.name,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+
+                                Text(
+                                    String.format(
+                                        Locale.getDefault(),
+                                        "%.2f Kč × %d",
+                                        product.price,
+                                        quantity
+                                    )
+                                )
                             }
 
-                            Text(
-                                quantity.toString(),
-                                modifier = Modifier.padding(8.dp)
-                            )
-
-                            IconButton(
-                                onClick = {
-                                    quantities =
-                                        quantities.toMutableMap().apply {
-                                            put(product.id, quantity + 1)
-                                        }
+                            Row {
+                                IconButton(
+                                    onClick = {
+                                        decrease(product)
+                                    }
+                                ) {
+                                    Text("−")
                                 }
-                            ) {
-                                Text("+")
+
+                                Text(
+                                    text = quantity.toString(),
+                                    modifier = Modifier.padding(
+                                        horizontal = 8.dp,
+                                        vertical = 8.dp
+                                    )
+                                )
+
+                                IconButton(
+                                    onClick = {
+                                        increase(product)
+                                    }
+                                ) {
+                                    Text("+")
+                                }
                             }
                         }
                     }
                 }
             }
 
-            HorizontalDivider()
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
 
             Text(
-                text = "Celkem: %.2f Kč".format(total),
+                text = String.format(
+                    Locale.getDefault(),
+                    "Celkem: %.2f Kč",
+                    total
+                ),
                 style = MaterialTheme.typography.headlineSmall
             )
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
 
             Button(
                 modifier = Modifier.fillMaxWidth(),
-                enabled = selectedItems.isNotEmpty(),
+                enabled = selectedProducts.isNotEmpty(),
                 onClick = {
-                    onSave(orderName, quantities)
+                    onSave(
+                        orderName,
+                        quantities
+                    )
                 }
             ) {
                 Text("Uložit objednávku")
@@ -148,48 +212,81 @@ fun NewOrderScreen(
 
         VerticalDivider()
 
-        // PRAVÁ POLOVINA — SORTIMENT
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(16.dp)
         ) {
+            Text(
+                text = "Sortiment",
+                style = MaterialTheme.typography.headlineSmall
+            )
 
-            items(products) { product ->
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
 
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(
+                    items = products,
+                    key = { it.id }
+                ) { product ->
 
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(product.name)
-                            Text("${product.price} Kč")
-                            Text(product.category.displayName)
+                    val quantity =
+                        quantities[product.id] ?: 0
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            increase(product)
                         }
-
-                        Button(
-                            onClick = {
-                                val quantity =
-                                    quantities[product.id] ?: 0
-
-                                quantities =
-                                    quantities.toMutableMap().apply {
-                                        put(product.id, quantity + 1)
-                                    }
-                            }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement =
+                                Arrangement.SpaceBetween
                         ) {
-                            Text("+")
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    product.name,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+
+                                Text(
+                                    product.category.displayName
+                                )
+
+                                Text(
+                                    String.format(
+                                        Locale.getDefault(),
+                                        "%.2f Kč",
+                                        product.price
+                                    )
+                                )
+                            }
+
+                            if (quantity > 0) {
+                                Text(
+                                    "× $quantity",
+                                    style = MaterialTheme.typography.titleLarge
+                                )
+                            } else {
+                                TextButton(
+                                    onClick = {
+                                        increase(product)
+                                    }
+                                ) {
+                                    Text("Přidat")
+                                }
+                            }
                         }
                     }
                 }

@@ -4,8 +4,6 @@ import com.example.easysell.data.local.OrderDao
 import com.example.easysell.data.local.OrderEntity
 import com.example.easysell.data.local.OrderItemEntity
 import com.example.easysell.data.local.OrderWithItems
-import com.example.easysell.data.local.Product
-import com.example.easysell.data.local.generateOrderId
 import kotlinx.coroutines.flow.Flow
 
 class OrderRepository(

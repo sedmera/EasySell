@@ -10,34 +10,50 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.easysell.data.OrderRepository
 import com.example.easysell.data.ProductRepository
 import com.example.easysell.data.local.ProductDatabase
 import com.example.easysell.ui.EasySellViewModel
 import com.example.easysell.ui.screens.GoodsScreen
 import com.example.easysell.ui.screens.HistoryScreen
 import com.example.easysell.ui.screens.HomeScreen
+import com.example.easysell.ui.screens.NewOrderNameDialog
 import com.example.easysell.ui.screens.NewOrderScreen
 import com.example.easysell.ui.theme.EasySellTheme
+
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         val database = ProductDatabase.getDatabase(applicationContext)
-        val repository = ProductRepository(database.productDao())
+
+        val productRepository = ProductRepository(
+            database.productDao()
+        )
+
+        val orderRepository = OrderRepository(
+            database.orderDao()
+        )
 
         setContent {
             EasySellTheme {
                 val easySellViewModel: EasySellViewModel = viewModel(
-                    factory = EasySellViewModel.Factory(repository)
+                    factory = EasySellViewModel.Factory(
+                        productRepository = productRepository,
+                        orderRepository = orderRepository
+                    )
                 )
-                EasySellApp(viewModel = easySellViewModel)
+
+                EasySellApp(
+                    viewModel = easySellViewModel
+                )
             }
         }
     }
@@ -55,6 +71,10 @@ fun EasySellApp(
         mutableStateOf(false)
     }
 
+    var showNewOrderDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     var orderName by rememberSaveable {
         mutableStateOf("")
     }
@@ -63,32 +83,31 @@ fun EasySellApp(
         mutableStateOf<String?>(null)
     }
 
-    val products by viewModel.products
-        .collectAsStateWithLifecycle()
+    val products by viewModel.products.collectAsStateWithLifecycle()
+    val orders by viewModel.orders.collectAsStateWithLifecycle()
 
-    val orders by viewModel.orders
-        .collectAsStateWithLifecycle()
-
-    val selectedOrder by historyDetailId
-        ?.let { viewModel.getOrder(it) }
-        ?.collectAsStateWithLifecycle(initialValue = null)
-        ?: remember {
-            mutableStateOf(null)
+    val selectedOrderState =
+        historyDetailId?.let { orderId ->
+            viewModel.getOrder(orderId)
+                .collectAsStateWithLifecycle(initialValue = null)
         }
+
+    val selectedOrder = selectedOrderState?.value
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
             AppDestinations.entries.forEach { destination ->
                 item(
-                    selected =
-                        destination == currentDestination,
+                    selected = destination == currentDestination,
                     onClick = {
                         currentDestination = destination
                         creatingOrder = false
+                        showNewOrderDialog = false
+                        historyDetailId = null
                     },
                     icon = {
                         Icon(
-                            painterResource(destination.icon),
+                            painter = painterResource(destination.icon),
                             contentDescription = destination.label
                         )
                     },
@@ -99,7 +118,6 @@ fun EasySellApp(
             }
         }
     ) {
-
         when {
             creatingOrder -> {
                 NewOrderScreen(
@@ -113,9 +131,11 @@ fun EasySellApp(
                         )
 
                         creatingOrder = false
+                        orderName = ""
                     },
                     onCancel = {
                         creatingOrder = false
+                        orderName = ""
                     }
                 )
             }
@@ -123,7 +143,7 @@ fun EasySellApp(
             currentDestination == AppDestinations.HOME -> {
                 HomeScreen(
                     onNewOrderClick = {
-                        // otevření dialogu
+                        showNewOrderDialog = true
                     }
                 )
             }
@@ -131,9 +151,10 @@ fun EasySellApp(
             currentDestination == AppDestinations.HISTORY -> {
                 HistoryScreen(
                     orders = orders,
+                    selectedOrderId = historyDetailId,
                     selectedOrder = selectedOrder,
-                    onOpenOrder = {
-                        historyDetailId = it
+                    onOpenOrder = { id ->
+                        historyDetailId = id
                     },
                     onBack = {
                         historyDetailId = null
@@ -151,13 +172,26 @@ fun EasySellApp(
             }
         }
     }
+
+    if (showNewOrderDialog) {
+        NewOrderNameDialog(
+            onDismiss = {
+                showNewOrderDialog = false
+            },
+            onConfirm = { name ->
+                orderName = name
+                showNewOrderDialog = false
+                creatingOrder = true
+            }
+        )
+    }
 }
 
 enum class AppDestinations(
     val label: String,
-    val icon: Int,
+    val icon: Int
 ) {
     HOME("Home", R.drawable.home_icon),
     HISTORY("History", R.drawable.history_icon),
-    GOODS("Goods", R.drawable.dataset_icon),
+    GOODS("Goods", R.drawable.dataset_icon)
 }

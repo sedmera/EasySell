@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -42,8 +42,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.easysell.data.local.Product
 import com.example.easysell.data.local.ProductCategory
-import kotlin.collections.filter
-import kotlin.collections.sortedBy
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,64 +52,110 @@ fun GoodsScreen(
     onUpdateProduct: (Product) -> Unit,
     onDeleteProduct: (Product) -> Unit
 ) {
-    var showAddDialog by remember { mutableStateOf(false) }
-    var selectedCategoryFilter by remember { mutableStateOf<ProductCategory?>(null) }
+    var showAddDialog by remember {
+        mutableStateOf(false)
+    }
 
-    // Filtrování a řazení podle vybraného druhu
-    val filteredProducts = remember(products, selectedCategoryFilter) {
-        val list = if (selectedCategoryFilter != null) {
-            products.filter { it.category == selectedCategoryFilter }
-        } else {
-            products
+    var editingProduct by remember {
+        mutableStateOf<Product?>(null)
+    }
+
+    var selectedCategoryFilter by remember {
+        mutableStateOf<ProductCategory?>(null)
+    }
+
+    val filteredProducts = remember(
+        products,
+        selectedCategoryFilter
+    ) {
+        val filtered =
+            if (selectedCategoryFilter == null) {
+                products
+            } else {
+                products.filter {
+                    it.category == selectedCategoryFilter
+                }
+            }
+
+        filtered.sortedBy {
+            it.category.displayName
         }
-        list.sortedBy { it.category.displayName }
     }
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Přidat sortiment")
+            FloatingActionButton(
+                onClick = {
+                    showAddDialog = true
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Přidat sortiment"
+                )
             }
         }
     ) { paddingValues ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
+
             Text(
                 text = "Správa sortimentu",
                 style = MaterialTheme.typography.headlineMedium
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
 
-            // Přepínače/Filtry kategorií
             Row(
-                modifier = Modifier.fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(
+                        rememberScrollState()
+                    ),
+                horizontalArrangement =
+                    Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(
-                    selected = selectedCategoryFilter == null,
-                    onClick = { selectedCategoryFilter = null },
-                    label = { Text("Vše") }
+                    selected =
+                        selectedCategoryFilter == null,
+                    onClick = {
+                        selectedCategoryFilter = null
+                    },
+                    label = {
+                        Text("Vše")
+                    }
                 )
+
                 ProductCategory.entries.forEach { category ->
                     FilterChip(
-                        selected = selectedCategoryFilter == category,
+                        selected =
+                            selectedCategoryFilter == category,
                         onClick = {
-                            selectedCategoryFilter = if (selectedCategoryFilter == category) null else category
+                            selectedCategoryFilter =
+                                if (selectedCategoryFilter == category) {
+                                    null
+                                } else {
+                                    category
+                                }
                         },
-                        label = { Text(category.displayName) }
+                        label = {
+                            Text(category.displayName)
+                        }
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(
+                modifier = Modifier.height(16.dp)
+            )
 
-            // Seznam sortimentu
             if (filteredProducts.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -120,23 +165,58 @@ fun GoodsScreen(
                 }
             } else {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement =
+                        Arrangement.spacedBy(8.dp)
                 ) {
-                    items(filteredProducts) { product ->
-                        ProductItemCard(product = product)
+                    items(
+                        items = filteredProducts,
+                        key = { it.id }
+                    ) { product ->
+                        ProductItemCard(
+                            product = product,
+                            onUpdate = {
+                                onUpdateProduct(it)
+                            },
+                            onDelete = {
+                                onDeleteProduct(it)
+                            },
+                            onEdit = {
+                                editingProduct = product
+                            }
+                        )
                     }
                 }
             }
         }
     }
 
-    // Dialogové okno pro přidání nového zboží
     if (showAddDialog) {
-        AddProductDialog(
-            onDismiss = { showAddDialog = false },
-            onConfirm = { newProduct ->
-                onAddProduct(newProduct)
+        ProductEditorDialog(
+            product = null,
+            onDismiss = {
                 showAddDialog = false
+            },
+            onSave = { product ->
+                onAddProduct(product)
+                showAddDialog = false
+            }
+        )
+    }
+
+    editingProduct?.let { product ->
+        ProductEditorDialog(
+            product = product,
+            onDismiss = {
+                editingProduct = null
+            },
+            onSave = {
+                onUpdateProduct(it)
+                editingProduct = null
+            },
+            onDelete = {
+                onDeleteProduct(it)
+                editingProduct = null
             }
         )
     }
@@ -146,140 +226,49 @@ fun GoodsScreen(
 fun ProductItemCard(
     product: Product,
     onUpdate: (Product) -> Unit,
-    onDelete: (Product) -> Unit
+    onDelete: (Product) -> Unit,
+    onEdit: () -> Unit
 ) {
-    var edit by remember {
-        mutableStateOf(false)
-    }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
-        onClick = {
-            edit = true
-        }
+        onClick = onEdit
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             horizontalArrangement =
-                Arrangement.SpaceBetween
+                Arrangement.SpaceBetween,
+            verticalAlignment =
+                Alignment.CenterVertically
         ) {
-            Column {
-                Text(product.name)
-                Text(product.category.displayName)
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    product.name,
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Text(
+                    "Druh: ${product.category.displayName}",
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             Text(
-                "%.2f Kč".format(product.price)
+                String.format(
+                    Locale.getDefault(),
+                    "%.2f Kč",
+                    product.price
+                ),
+                style = MaterialTheme.typography.titleMedium
             )
         }
-    }
-
-    if (edit) {
-        ProductEditorDialog(
-            product = product,
-            onDismiss = {
-                edit = false
-            },
-            onSave = {
-                onUpdate(it)
-                edit = false
-            },
-            onDelete = {
-                onDelete(it)
-                edit = false
-            }
-        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AddProductDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (Product) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var priceText by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf(ProductCategory.FOOD) }
-    var expandedDropdown by remember { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Přidat nové zboží") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Název položky") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = priceText,
-                    onValueChange = { priceText = it },
-                    label = { Text("Cena (Kč)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Výběr druhu / kategorie
-                ExposedDropdownMenuBox(
-                    expanded = expandedDropdown,
-                    onExpandedChange = { expandedDropdown = !expandedDropdown }
-                ) {
-                    OutlinedTextField(
-                        value = selectedCategory.displayName,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Druh zboží") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDropdown) },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
-                    )
-
-                    ExposedDropdownMenu(
-                        expanded = expandedDropdown,
-                        onDismissRequest = { expandedDropdown = false }
-                    ) {
-                        ProductCategory.entries.forEach { category ->
-                            DropdownMenuItem(
-                                text = { Text(category.displayName) },
-                                onClick = {
-                                    selectedCategory = category
-                                    expandedDropdown = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val price = priceText.toDoubleOrNull() ?: 0.0
-                    if (name.isNotBlank() && price > 0) {
-                        onConfirm(Product(name = name, price = price, category = selectedCategory))
-                    }
-                }
-            ) {
-                Text("Přidat")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Zrušit")
-            }
-        }
-    )
-}
-
 @Composable
 fun ProductEditorDialog(
     product: Product?,
@@ -303,60 +292,127 @@ fun ProductEditorDialog(
         )
     }
 
+    var expanded by remember(product) {
+        mutableStateOf(false)
+    }
+
+    val price =
+        priceText
+            .replace(',', '.')
+            .toDoubleOrNull()
+
+    val valid =
+        name.isNotBlank() &&
+                price != null &&
+                price > 0.0
+
     AlertDialog(
         onDismissRequest = onDismiss,
 
         title = {
             Text(
-                if (product == null)
+                if (product == null) {
                     "Přidat produkt"
-                else
+                } else {
                     "Upravit produkt"
+                }
             )
         },
 
         text = {
             Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement =
+                    Arrangement.spacedBy(12.dp)
             ) {
-
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it },
-                    label = {
-                        Text("Název")
+                    onValueChange = {
+                        name = it
                     },
-                    singleLine = true
+                    label = {
+                        Text("Název položky")
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 OutlinedTextField(
                     value = priceText,
-                    onValueChange = { priceText = it },
+                    onValueChange = {
+                        priceText = it
+                    },
                     label = {
                         Text("Cena (Kč)")
                     },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal
-                    ),
-                    singleLine = true
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType =
+                                KeyboardType.Decimal
+                        ),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
-                // dropdown kategorie stejný jako nyní
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = {
+                        expanded = !expanded
+                    }
+                ) {
+                    OutlinedTextField(
+                        value = category.displayName,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = {
+                            Text("Druh zboží")
+                        },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults
+                                .TrailingIcon(
+                                    expanded = expanded
+                                )
+                        },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = {
+                            expanded = false
+                        }
+                    ) {
+                        ProductCategory.entries.forEach {
+                                categoryOption ->
+
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        categoryOption.displayName
+                                    )
+                                },
+                                onClick = {
+                                    category =
+                                        categoryOption
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         },
 
         confirmButton = {
             Button(
-                enabled =
-                    name.isNotBlank() &&
-                            (priceText.toDoubleOrNull() ?: 0.0) > 0,
-
+                enabled = valid,
                 onClick = {
                     onSave(
                         Product(
                             id = product?.id ?: 0,
                             name = name.trim(),
-                            price = priceText.toDouble(),
+                            price = price!!,
                             category = category
                         )
                     )
