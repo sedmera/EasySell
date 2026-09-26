@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -41,9 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.example.easysell.data.Produkt
-import com.example.easysell.data.ProductCategory
 import com.example.easysell.data.local.Product
+import com.example.easysell.data.local.ProductCategory
 import kotlin.collections.filter
 import kotlin.collections.sortedBy
 
@@ -51,7 +49,9 @@ import kotlin.collections.sortedBy
 @Composable
 fun GoodsScreen(
     products: List<Product>,
-    onAddProduct: (Produkt) -> Unit
+    onAddProduct: (Product) -> Unit,
+    onUpdateProduct: (Product) -> Unit,
+    onDeleteProduct: (Product) -> Unit
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedCategoryFilter by remember { mutableStateOf<ProductCategory?>(null) }
@@ -143,40 +143,54 @@ fun GoodsScreen(
 }
 
 @Composable
-fun ProductItemCard(product: Produkt) {
-    var showEditDialog by remember { mutableStateOf(false) }
+fun ProductItemCard(
+    product: Product,
+    onUpdate: (Product) -> Unit,
+    onDelete: (Product) -> Unit
+) {
+    var edit by remember {
+        mutableStateOf(false)
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        onClick = { showEditDialog = true }
+        onClick = {
+            edit = true
+        }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement =
+                Arrangement.SpaceBetween
         ) {
             Column {
-                Text(text = product.name, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = "Druh: ${product.category.displayName}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text(product.name)
+                Text(product.category.displayName)
             }
+
             Text(
-                text = "${product.price} Kč",
-                style = MaterialTheme.typography.titleMedium
+                "%.2f Kč".format(product.price)
             )
         }
     }
 
-    if (showEditDialog) {
-        AddProductDialog(
-            onDismiss = {showEditDialog = false}
-        ) {}
+    if (edit) {
+        ProductEditorDialog(
+            product = product,
+            onDismiss = {
+                edit = false
+            },
+            onSave = {
+                onUpdate(it)
+                edit = false
+            },
+            onDelete = {
+                onDelete(it)
+                edit = false
+            }
+        )
     }
 }
 
@@ -184,7 +198,7 @@ fun ProductItemCard(product: Produkt) {
 @Composable
 fun AddProductDialog(
     onDismiss: () -> Unit,
-    onConfirm: (Produkt) -> Unit
+    onConfirm: (Product) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var priceText by remember { mutableStateOf("") }
@@ -251,7 +265,7 @@ fun AddProductDialog(
                 onClick = {
                     val price = priceText.toDoubleOrNull() ?: 0.0
                     if (name.isNotBlank() && price > 0) {
-                        onConfirm(Produkt(name = name, price = price, category = selectedCategory))
+                        onConfirm(Product(name = name, price = price, category = selectedCategory))
                     }
                 }
             ) {
@@ -261,6 +275,114 @@ fun AddProductDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Zrušit")
+            }
+        }
+    )
+}
+
+@Composable
+fun ProductEditorDialog(
+    product: Product?,
+    onDismiss: () -> Unit,
+    onSave: (Product) -> Unit,
+    onDelete: ((Product) -> Unit)? = null
+) {
+    var name by remember(product) {
+        mutableStateOf(product?.name ?: "")
+    }
+
+    var priceText by remember(product) {
+        mutableStateOf(
+            product?.price?.toString() ?: ""
+        )
+    }
+
+    var category by remember(product) {
+        mutableStateOf(
+            product?.category ?: ProductCategory.FOOD
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+
+        title = {
+            Text(
+                if (product == null)
+                    "Přidat produkt"
+                else
+                    "Upravit produkt"
+            )
+        },
+
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = {
+                        Text("Název")
+                    },
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = priceText,
+                    onValueChange = { priceText = it },
+                    label = {
+                        Text("Cena (Kč)")
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal
+                    ),
+                    singleLine = true
+                )
+
+                // dropdown kategorie stejný jako nyní
+            }
+        },
+
+        confirmButton = {
+            Button(
+                enabled =
+                    name.isNotBlank() &&
+                            (priceText.toDoubleOrNull() ?: 0.0) > 0,
+
+                onClick = {
+                    onSave(
+                        Product(
+                            id = product?.id ?: 0,
+                            name = name.trim(),
+                            price = priceText.toDouble(),
+                            category = category
+                        )
+                    )
+                }
+            ) {
+                Text("Uložit")
+            }
+        },
+
+        dismissButton = {
+            Row {
+                if (product != null && onDelete != null) {
+                    TextButton(
+                        onClick = {
+                            onDelete(product)
+                        }
+                    ) {
+                        Text("Smazat")
+                    }
+                }
+
+                TextButton(
+                    onClick = onDismiss
+                ) {
+                    Text("Zrušit")
+                }
             }
         }
     )

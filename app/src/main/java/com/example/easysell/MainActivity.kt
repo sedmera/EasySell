@@ -10,6 +10,7 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
@@ -17,12 +18,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.easysell.data.ProductRepository
 import com.example.easysell.data.local.ProductDatabase
-import com.example.easysell.ui.GoodsViewModel
+import com.example.easysell.ui.EasySellViewModel
 import com.example.easysell.ui.screens.GoodsScreen
 import com.example.easysell.ui.screens.HistoryScreen
 import com.example.easysell.ui.screens.HomeScreen
+import com.example.easysell.ui.screens.NewOrderScreen
 import com.example.easysell.ui.theme.EasySellTheme
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,51 +34,121 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             EasySellTheme {
-                val goodsViewModel: GoodsViewModel = viewModel(
-                    factory = GoodsViewModel.Factory(repository)
+                val easySellViewModel: EasySellViewModel = viewModel(
+                    factory = EasySellViewModel.Factory(repository)
                 )
-                EasySellApp(viewModel = goodsViewModel)
+                EasySellApp(viewModel = easySellViewModel)
             }
         }
     }
 }
 
 @Composable
-fun EasySellApp(viewModel: GoodsViewModel) {
-    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+fun EasySellApp(
+    viewModel: EasySellViewModel
+) {
+    var currentDestination by rememberSaveable {
+        mutableStateOf(AppDestinations.HOME)
+    }
 
-    val productList by viewModel.products.collectAsStateWithLifecycle(initialValue = emptyList())
+    var creatingOrder by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var orderName by rememberSaveable {
+        mutableStateOf("")
+    }
+
+    var historyDetailId by rememberSaveable {
+        mutableStateOf<String?>(null)
+    }
+
+    val products by viewModel.products
+        .collectAsStateWithLifecycle()
+
+    val orders by viewModel.orders
+        .collectAsStateWithLifecycle()
+
+    val selectedOrder by historyDetailId
+        ?.let { viewModel.getOrder(it) }
+        ?.collectAsStateWithLifecycle(initialValue = null)
+        ?: remember {
+            mutableStateOf(null)
+        }
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
             AppDestinations.entries.forEach { destination ->
                 item(
+                    selected =
+                        destination == currentDestination,
+                    onClick = {
+                        currentDestination = destination
+                        creatingOrder = false
+                    },
                     icon = {
                         Icon(
-                            painter = painterResource(destination.icon),
+                            painterResource(destination.icon),
                             contentDescription = destination.label
                         )
                     },
-                    label = { Text(destination.label) },
-                    selected = destination == currentDestination,
-                    onClick = { currentDestination = destination }
+                    label = {
+                        Text(destination.label)
+                    }
                 )
             }
         }
     ) {
-        when (currentDestination) {
-            AppDestinations.HOME -> HomeScreen(
-               // onNewOrderClick = { currentDestination = AppDestinations.NEW_ORDER }
-            )
-            AppDestinations.HISTORY -> HistoryScreen()
-            AppDestinations.GOODS -> GoodsScreen(
-                products = productList,
-                onAddProduct = { newProduct -> viewModel.addProduct(newProduct) }
-            )
-    //        AppDestinations.NEW_ORDER -> NewOrderScreen(
-    //            availableProducts = productList, // Zde předáme sortiment do objednávky
-    //            onOrderFinished = { currentDestination = AppDestinations.HOME }
-    //        )
+
+        when {
+            creatingOrder -> {
+                NewOrderScreen(
+                    orderName = orderName,
+                    products = products,
+                    onSave = { name, quantities ->
+                        viewModel.saveOrder(
+                            name = name,
+                            products = products,
+                            quantities = quantities
+                        )
+
+                        creatingOrder = false
+                    },
+                    onCancel = {
+                        creatingOrder = false
+                    }
+                )
+            }
+
+            currentDestination == AppDestinations.HOME -> {
+                HomeScreen(
+                    onNewOrderClick = {
+                        // otevření dialogu
+                    }
+                )
+            }
+
+            currentDestination == AppDestinations.HISTORY -> {
+                HistoryScreen(
+                    orders = orders,
+                    selectedOrder = selectedOrder,
+                    onOpenOrder = {
+                        historyDetailId = it
+                    },
+                    onBack = {
+                        historyDetailId = null
+                    }
+                )
+            }
+
+            currentDestination == AppDestinations.GOODS -> {
+                GoodsScreen(
+                    products = products,
+                    onAddProduct = viewModel::addProduct,
+                    onUpdateProduct = viewModel::updateProduct,
+                    onDeleteProduct = viewModel::deleteProduct
+                )
+            }
         }
     }
 }

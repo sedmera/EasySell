@@ -5,20 +5,21 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ProductDao {
 
-    // Insert product
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertProduct(product: Product)
+    suspend fun insertProduct(product: Product): Long
 
-    // Delete product
+    @Update
+    suspend fun updateProduct(product: Product): Int
+
     @Delete
-    suspend fun deleteProduct(product: Product)
+    suspend fun deleteProduct(product: Product): Int
 
-    // Retrieve all products
     @Query("SELECT * FROM products_table ORDER BY id ASC")
     fun getAllProducts(): Flow<List<Product>>
 }
