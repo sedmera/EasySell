@@ -1,9 +1,6 @@
 package com.example.easysell.ui.screens
 
-import android.R
-import android.R.attr.contentDescription
-import android.graphics.drawable.Icon
-import android.widget.Filter
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -32,7 +30,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButtonDefaults.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,13 +39,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.keepScreenOn
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.dp
-import com.example.easysell.data.Product
+import com.example.easysell.data.Produkt
 import com.example.easysell.data.ProductCategory
-import kotlinx.coroutines.selects.select
+import com.example.easysell.data.local.Product
 import kotlin.collections.filter
 import kotlin.collections.sortedBy
 
@@ -56,7 +51,7 @@ import kotlin.collections.sortedBy
 @Composable
 fun GoodsScreen(
     products: List<Product>,
-    onAddProduct: (Product) -> Unit
+    onAddProduct: (Produkt) -> Unit
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedCategoryFilter by remember { mutableStateOf<ProductCategory?>(null) }
@@ -93,7 +88,8 @@ fun GoodsScreen(
 
             // Přepínače/Filtry kategorií
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(
@@ -147,10 +143,13 @@ fun GoodsScreen(
 }
 
 @Composable
-fun ProductItemCard(product: Product) {
+fun ProductItemCard(product: Produkt) {
+    var showEditDialog by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        onClick = { showEditDialog = true }
     ) {
         Row(
             modifier = Modifier
@@ -173,13 +172,19 @@ fun ProductItemCard(product: Product) {
             )
         }
     }
+
+    if (showEditDialog) {
+        AddProductDialog(
+            onDismiss = {showEditDialog = false}
+        ) {}
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddProductDialog(
     onDismiss: () -> Unit,
-    onConfirm: (Product) -> Unit
+    onConfirm: (Produkt) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var priceText by remember { mutableStateOf("") }
@@ -246,7 +251,7 @@ fun AddProductDialog(
                 onClick = {
                     val price = priceText.toDoubleOrNull() ?: 0.0
                     if (name.isNotBlank() && price > 0) {
-                        onConfirm(Product(name = name, price = price, category = selectedCategory))
+                        onConfirm(Produkt(name = name, price = price, category = selectedCategory))
                     }
                 }
             ) {

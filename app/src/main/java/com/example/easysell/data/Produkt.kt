@@ -10,7 +10,7 @@ enum class ProductCategory(val displayName: String) {
     MISC("Ostatní")
 }
 
-data class Product(
+data class Produkt(
     val id: String = java.util.UUID.randomUUID().toString(),
     val name: String,
     val price: Double,
