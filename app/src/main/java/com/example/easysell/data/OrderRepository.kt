@@ -21,4 +21,8 @@ class OrderRepository(
     ) {
         orderDao.saveOrder(order, items)
     }
+
+    suspend fun deleteOrder(orderId: String) {
+        orderDao.deleteOrder(orderId)
+    }
 }

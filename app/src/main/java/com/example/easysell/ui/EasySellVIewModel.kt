@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.easysell.data.OrderRepository
 import com.example.easysell.data.ProductRepository
+import com.example.easysell.data.UserPreferencesRepository
 import com.example.easysell.data.local.OrderEntity
 import com.example.easysell.data.local.OrderItemEntity
 import com.example.easysell.data.local.OrderWithItems
@@ -18,7 +19,8 @@ import kotlinx.coroutines.launch
 
 class EasySellViewModel(
     private val productRepository: ProductRepository,
-    private val orderRepository: OrderRepository
+    private val orderRepository: OrderRepository,
+    private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
     val products: StateFlow<List<Product>> =
@@ -33,6 +35,13 @@ class EasySellViewModel(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList()
+        )
+
+    val orderName: StateFlow<String> =
+        userPreferencesRepository.orderName.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = "Objednávka"
         )
 
     fun getOrder(id: String): Flow<OrderWithItems?> {
@@ -56,6 +65,19 @@ class EasySellViewModel(
             productRepository.deleteProduct(product)
         }
     }
+
+    fun setOrderName(name: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setOrderName(name)
+        }
+    }
+
+    fun deleteOrder(orderId: String) {
+        viewModelScope.launch {
+            orderRepository.deleteOrder(orderId)
+        }
+    }
+
 
     fun saveOrder(
         name: String,
@@ -111,7 +133,8 @@ class EasySellViewModel(
 
     class Factory(
         private val productRepository: ProductRepository,
-        private val orderRepository: OrderRepository
+        private val orderRepository: OrderRepository,
+        val userPreferencesRepository: UserPreferencesRepository
     ) : ViewModelProvider.Factory {
 
         @Suppress("UNCHECKED_CAST")
@@ -121,7 +144,8 @@ class EasySellViewModel(
             if (modelClass.isAssignableFrom(EasySellViewModel::class.java)) {
                 return EasySellViewModel(
                     productRepository = productRepository,
-                    orderRepository = orderRepository
+                    orderRepository = orderRepository,
+                    userPreferencesRepository = userPreferencesRepository
                 ) as T
             }
 

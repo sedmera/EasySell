@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -20,6 +22,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,10 +42,10 @@ fun HistoryScreen(
     selectedOrderId: String?,
     selectedOrder: OrderWithItems?,
     onOpenOrder: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onDeleteOrder: (String) -> Unit
 ) {
     when {
-// Detail byl vybrán, ale ještě se načítá z databáze.
         selectedOrderId != null && selectedOrder == null -> {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -49,73 +55,62 @@ fun HistoryScreen(
             }
         }
 
-        // Máme načtený detail objednávky.
         selectedOrder != null -> {
-        OrderDetailScreen(
-            order = selectedOrder,
-            onBack = onBack
-        )
-    }
-
-        // Není vybraný žádný detail -> zobraz seznam.
-        else -> {
-            OrderHistoryList(
-                orders = orders,
-                onOpenOrder = onOpenOrder
+            OrderDetailScreen(
+                order = selectedOrder,
+                onBack = onBack,
+                onDeleteOrder = onDeleteOrder
             )
         }
-    }
 
+        else -> {
+            if (orders.isEmpty()) {
+                EmptyHistoryScreen()
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(
+                        items = orders,
+                        key = { it.id }
+                    ) { order ->
+
+                        OrderHistoryItem(
+                            order = order,
+                            onClick = {
+                                onOpenOrder(order.id)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
-private fun OrderHistoryList(
-    orders: List<OrderEntity>,
-    onOpenOrder: (String) -> Unit
-) {
-    if (orders.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "Historie objednávek je prázdná",
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                Text(
-                    text = "Uložené objednávky se zde zobrazí.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-
-        return
-    }
-
-    LazyColumn(
+private fun EmptyHistoryScreen() {
+    Box(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        contentAlignment = Alignment.Center
     ) {
-        items(
-            items = orders,
-            key = { it.id }
-        ) { order ->
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Historie objednávek je prázdná",
+                style = MaterialTheme.typography.titleMedium
+            )
 
-            OrderHistoryItem(
-                order = order,
-                onClick = {
-                    onOpenOrder(order.id)
-                }
+            Text(
+                text = "Uložené objednávky se zde zobrazí.",
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }
-
 }
 
 @Composable
@@ -153,24 +148,24 @@ private fun OrderHistoryItem(
                 )
             }
 
-            Spacer(
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
-
             Text(
                 text = formatMoney(order.total),
                 style = MaterialTheme.typography.titleMedium
             )
         }
     }
-
 }
 
 @Composable
-fun OrderDetailScreen(
+private fun OrderDetailScreen(
     order: OrderWithItems,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onDeleteOrder: (String) -> Unit
 ) {
+    var showDeleteDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -225,40 +220,47 @@ fun OrderDetailScreen(
             modifier = Modifier.height(16.dp)
         )
 
-        if (order.items.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Objednávka neobsahuje žádné položky."
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(
-                    items = order.items,
-                    key = { it.id }
-                ) { item ->
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(
+                items = order.items,
+                key = { it.id }
+            ) { item ->
 
-                    OrderItemRow(
-                        name = item.productName,
-                        quantity = item.quantity,
-                        unitPrice = item.unitPrice,
-                        totalPrice = item.unitPrice * item.quantity
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = item.productName,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+
+                        Text(
+                            text = "${
+                                item.quantity
+                            } × ${
+                                formatMoney(item.unitPrice)
+                            }"
+                        )
+                    }
+
+                    Text(
+                        text = formatMoney(
+                            item.unitPrice * item.quantity
+                        ),
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
             }
         }
-
-        Spacer(
-            modifier = Modifier.height(8.dp)
-        )
 
         HorizontalDivider()
 
@@ -268,8 +270,7 @@ fun OrderDetailScreen(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = "Celkem",
@@ -280,6 +281,19 @@ fun OrderDetailScreen(
                 text = formatMoney(order.order.total),
                 style = MaterialTheme.typography.headlineSmall
             )
+        }
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                showDeleteDialog = true
+            }
+        ) {
+            Text("Smazat objednávku")
         }
 
         Spacer(
@@ -294,45 +308,41 @@ fun OrderDetailScreen(
         }
     }
 
-}
-
-@Composable
-private fun OrderItemRow(
-    name: String,
-    quantity: Int,
-    unitPrice: Double,
-    totalPrice: Double
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                vertical = 8.dp
-            ),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = name,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Text(
-                text = "$quantity × ${formatMoney(unitPrice)}",
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
-        Text(
-            text = formatMoney(totalPrice),
-            style = MaterialTheme.typography.titleMedium
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+            },
+            title = {
+                Text("Smazat objednávku?")
+            },
+            text = {
+                Text(
+                    "Opravdu chcete smazat objednávku „${order.order.name}“? " +
+                            "Tuto akci nelze vrátit zpět."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteOrder(order.order.id)
+                    }
+                ) {
+                    Text("Smazat")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("Zrušit")
+                }
+            }
         )
     }
-
 }
 
 private fun formatDate(timestamp: Long): String {

@@ -17,12 +17,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.easysell.data.OrderRepository
 import com.example.easysell.data.ProductRepository
+import com.example.easysell.data.UserPreferencesRepository
 import com.example.easysell.data.local.ProductDatabase
 import com.example.easysell.ui.EasySellViewModel
 import com.example.easysell.ui.screens.GoodsScreen
 import com.example.easysell.ui.screens.HistoryScreen
 import com.example.easysell.ui.screens.HomeScreen
-import com.example.easysell.ui.screens.NewOrderNameDialog
 import com.example.easysell.ui.screens.NewOrderScreen
 import com.example.easysell.ui.theme.EasySellTheme
 
@@ -33,6 +33,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val database = ProductDatabase.getDatabase(applicationContext)
+        val userPreferencesRepository =
+            UserPreferencesRepository(applicationContext)
 
         val productRepository = ProductRepository(
             database.productDao()
@@ -47,7 +49,8 @@ class MainActivity : ComponentActivity() {
                 val easySellViewModel: EasySellViewModel = viewModel(
                     factory = EasySellViewModel.Factory(
                         productRepository = productRepository,
-                        orderRepository = orderRepository
+                        orderRepository = orderRepository,
+                        userPreferencesRepository = userPreferencesRepository
                     )
                 )
 
@@ -75,9 +78,8 @@ fun EasySellApp(
         mutableStateOf(false)
     }
 
-    var orderName by rememberSaveable {
-        mutableStateOf("")
-    }
+    val orderName by viewModel.orderName
+        .collectAsStateWithLifecycle()
 
     var historyDetailId by rememberSaveable {
         mutableStateOf<String?>(null)
@@ -129,21 +131,21 @@ fun EasySellApp(
                             products = products,
                             quantities = quantities
                         )
-
                         creatingOrder = false
-                        orderName = ""
+
                     },
                     onCancel = {
                         creatingOrder = false
-                        orderName = ""
                     }
                 )
             }
 
             currentDestination == AppDestinations.HOME -> {
                 HomeScreen(
+                    orderName = orderName,
+                    onOrderNameChange = viewModel::setOrderName,
                     onNewOrderClick = {
-                        showNewOrderDialog = true
+                        creatingOrder = true
                     }
                 )
             }
@@ -158,6 +160,10 @@ fun EasySellApp(
                     },
                     onBack = {
                         historyDetailId = null
+                    },
+                    onDeleteOrder = { id ->
+                        viewModel.deleteOrder(id)
+                        historyDetailId = null
                     }
                 )
             }
@@ -171,19 +177,6 @@ fun EasySellApp(
                 )
             }
         }
-    }
-
-    if (showNewOrderDialog) {
-        NewOrderNameDialog(
-            onDismiss = {
-                showNewOrderDialog = false
-            },
-            onConfirm = { name ->
-                orderName = name
-                showNewOrderDialog = false
-                creatingOrder = true
-            }
-        )
     }
 }
 

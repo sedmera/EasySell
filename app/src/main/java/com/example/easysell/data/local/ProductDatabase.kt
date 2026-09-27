@@ -6,6 +6,12 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.room.RoomDatabase.Callback
+import com.example.easysell.data.SeedData
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 @Database(
     entities = [
@@ -26,6 +32,11 @@ abstract class ProductDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: ProductDatabase? = null
 
+        private val databaseScope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.IO
+            )
+
         fun getDatabase(context: Context): ProductDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -34,6 +45,23 @@ abstract class ProductDatabase : RoomDatabase() {
                     "product_database"
                 )
                     .addMigrations(MIGRATION_1_2)
+                    .addCallback(
+                        object : Callback() {
+                            override fun onCreate(
+                                db: SupportSQLiteDatabase
+                            ) {
+                                super.onCreate(db)
+
+                                databaseScope.launch {
+                                    INSTANCE
+                                        ?.productDao()
+                                        ?.insertProducts(
+                                            SeedData.products
+                                        )
+                                }
+                            }
+                        }
+                    )
                     .build()
 
                 INSTANCE = instance

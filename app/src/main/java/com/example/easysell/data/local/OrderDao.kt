@@ -38,4 +38,22 @@ interface OrderDao {
         WHERE id = :orderId
     """)
     fun getOrderWithItems(orderId: String): Flow<OrderWithItems?>
+
+    @Query("""
+    DELETE FROM order_items
+    WHERE orderId = :orderId
+""")
+    suspend fun deleteOrderItems(orderId: String): Int
+
+    @Query("""
+    DELETE FROM orders
+    WHERE id = :orderId
+""")
+    suspend fun deleteOrderEntity(orderId: String): Int
+
+    @Transaction
+    suspend fun deleteOrder(orderId: String): Int {
+        deleteOrderItems(orderId)
+        return deleteOrderEntity(orderId)
+    }
 }

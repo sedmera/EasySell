@@ -1,0 +1,5 @@
+
+- permanentní název na home screen aplikovaný do změny
+- mazání objednávek z historie s pop up dialogem
+- předělat novou objednavku aby měla příjemnější UX
+- seeding dat
