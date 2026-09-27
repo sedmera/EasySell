@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -73,6 +74,10 @@ fun NewOrderScreen(
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
+
+        Spacer(
+            modifier = Modifier.height(30.dp)
+        )
 
         Column(
             modifier = Modifier
@@ -243,7 +248,11 @@ fun NewOrderScreen(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
                             increase(product)
-                        }
+                        },
+                        colors = CardDefaults.cardColors(
+                            containerColor = product.category.colors().container,
+                            contentColor = product.category.colors().content
+                        )
                     ) {
                         Row(
                             modifier = Modifier

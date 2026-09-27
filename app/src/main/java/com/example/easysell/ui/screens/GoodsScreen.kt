@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenuItem
@@ -231,7 +232,11 @@ fun ProductItemCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        onClick = onEdit
+        onClick = onEdit,
+        colors = CardDefaults.cardColors(
+            containerColor = product.category.colors().container,
+            contentColor = product.category.colors().content
+        )
     ) {
         Row(
             modifier = Modifier

@@ -118,6 +118,18 @@ private fun OrderHistoryItem(
     order: OrderEntity,
     onClick: () -> Unit
 ) {
+    Spacer(
+        modifier = Modifier.height(30.dp)
+    )
+    Text(
+        text = "Archiv Objednávek",
+        style = MaterialTheme.typography.headlineMedium
+    )
+
+    Spacer(
+        modifier = Modifier.height(12.dp)
+    )
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick
