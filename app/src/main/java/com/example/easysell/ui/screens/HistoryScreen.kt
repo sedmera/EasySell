@@ -14,11 +14,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,6 +32,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
+import com.example.easysell.printer.BluetoothPrinter
 import com.example.easysell.data.local.OrderEntity
 import com.example.easysell.data.local.OrderWithItems
 import java.text.SimpleDateFormat
@@ -67,11 +74,25 @@ fun HistoryScreen(
             if (orders.isEmpty()) {
                 EmptyHistoryScreen()
             } else {
+
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+
                 ) {
+                    item { Spacer(
+                        modifier = Modifier.height(28.dp)
+                    )
+                        Text(
+                            text = "Archiv Objednávek",
+                            style = MaterialTheme.typography.headlineMedium
+                        )
+
+                        Spacer(
+                            modifier = Modifier.height(16.dp)
+                        ) }
+
                     items(
                         items = orders,
                         key = { it.id }
@@ -92,23 +113,31 @@ fun HistoryScreen(
 
 @Composable
 private fun EmptyHistoryScreen() {
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "Historie objednávek je prázdná",
-                style = MaterialTheme.typography.titleMedium
-            )
 
-            Text(
-                text = "Uložené objednávky se zde zobrazí.",
-                style = MaterialTheme.typography.bodyMedium
-            )
+
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Historie objednávek je prázdná",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Text(
+                    text = "Uložené objednávky se zde zobrazí.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
     }
 }
@@ -118,14 +147,6 @@ private fun OrderHistoryItem(
     order: OrderEntity,
     onClick: () -> Unit
 ) {
-    Spacer(
-        modifier = Modifier.height(30.dp)
-    )
-    Text(
-        text = "Archiv Objednávek",
-        style = MaterialTheme.typography.headlineMedium
-    )
-
     Spacer(
         modifier = Modifier.height(12.dp)
     )
@@ -178,16 +199,26 @@ private fun OrderDetailScreen(
         mutableStateOf(false)
     }
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var printMessage by rememberSaveable {
+        mutableStateOf<String?>(null)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        Spacer(modifier = Modifier.height(30.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+
+
             IconButton(
                 onClick = onBack
             ) {
@@ -302,6 +333,34 @@ private fun OrderDetailScreen(
         Button(
             modifier = Modifier.fillMaxWidth(),
             onClick = {
+                scope.launch {
+                    val printer = BluetoothPrinter(context)
+                    val result = printer.printOrder(order)
+
+                    printMessage = result.fold(
+                        onSuccess = {
+                            "Účtenka odeslána do tiskárny."
+                        },
+                        onFailure = { error ->
+                            "Chyba tisku: ${
+                                error.message ?: "Neznámá chyba"
+                            }"
+                        }
+                    )
+                }
+            }
+        ) {
+            Text("Tisk účtenky")
+        }
+
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
+
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+            onClick = {
                 showDeleteDialog = true
             }
         ) {
@@ -317,6 +376,16 @@ private fun OrderDetailScreen(
             onClick = onBack
         ) {
             Text("Zpět na historii")
+        }
+        printMessage?.let { message ->
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
+
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
     }
 
